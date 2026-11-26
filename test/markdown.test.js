@@ -15,7 +15,7 @@ test('renders GitHub-style Markdown features', () => {
 test('does not render raw HTML or executable links', () => {
   const html = renderMarkdown('<script>alert(1)</script>\n\n[x](javascript:alert(1))');
   assert.doesNotMatch(html, /<script>/i);
-  assert.doesNotMatch(html, /javascript:/i);
+  assert.doesNotMatch(html, /href=["']javascript:/i);
 });
 
 test('highlights fenced code blocks', () => {

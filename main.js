@@ -1,5 +1,39 @@
 'use strict';
 
+// Notepadqq's bundled Node API still uses the removed SpiderMonkey-era
+// Proxy.create(handler, prototype) interface. Provide the small subset it
+// needs using the standard ES Proxy API available in modern Node.js.
+if (typeof Proxy.create !== 'function') {
+  Object.defineProperty(Proxy, 'create', {
+    configurable: true,
+    writable: true,
+    value(handler, prototype) {
+      const target = Object.create(prototype || Object.prototype);
+      return new Proxy(target, {
+        get(_target, property, receiver) {
+          if (typeof handler.get === 'function') {
+            return handler.get(receiver, property);
+          }
+          return Reflect.get(_target, property, receiver);
+        },
+        ownKeys() {
+          return typeof handler.getOwnPropertyNames === 'function'
+            ? handler.getOwnPropertyNames()
+            : Reflect.ownKeys(target);
+        },
+        getOwnPropertyDescriptor(_target, property) {
+          return Reflect.getOwnPropertyDescriptor(target, property) || {
+            configurable: true,
+            enumerable: false,
+            writable: false,
+            value: undefined
+          };
+        }
+      });
+    }
+  });
+}
+
 const http = require('node:http');
 const { spawn } = require('node:child_process');
 const { NotepadqqApi } = require('notepadqq-api');
@@ -126,10 +160,7 @@ function showPreview(window) {
       console.error('GitHub Markdown Preview: no active editor.');
       return;
     }
-
-    // Notepadqq's API returns the current editor contents synchronously.
     markdownSource = editor.value() || '';
-
     ensurePreviewServer().then(() => {
       if (!browserOpened) {
         browserOpened = true;
@@ -143,7 +174,6 @@ function showPreview(window) {
   }
 }
 
-// Use Notepadqq's official extension API, not a hand-written socket protocol.
 NotepadqqApi.connect(api => {
   api.onWindowInitialization(window => {
     const menu = window.addExtensionMenuItem(api.extensionId, 'Preview current document');

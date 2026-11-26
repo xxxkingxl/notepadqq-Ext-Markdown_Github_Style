@@ -9,7 +9,7 @@ test('renders GitHub-style Markdown features', () => {
   assert.match(html, /<h1>Heading<\/h1>/);
   assert.match(html, /<table>/);
   assert.match(html, /type="checkbox"/);
-  assert.match(html, /<del>old<\/del>/);
+  assert.match(html, /<s>old<\/s>/);
 });
 
 test('does not render raw HTML or executable links', () => {

@@ -1,23 +1,12 @@
 'use strict';
 
-/*
- * Notepadqq Node.js extension entry point.
- * The host supplies a local socket path and extension ID as argv[2] and argv[3].
- * Messages use newline-delimited JSON.
- */
-const net = require('node:net');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
+const { NotepadqqApi } = require('notepadqq-api');
 const MarkdownIt = require('markdown-it');
+const taskLists = require('markdown-it-task-lists');
 const hljs = require('highlight.js');
 const sanitizeHtml = require('sanitize-html');
-
-const socketPath = process.argv[2];
-const extensionId = process.argv[3];
-if (!socketPath || !extensionId) {
-  process.stderr.write('GitHub Markdown Preview: missing Notepadqq socket arguments\n');
-  process.exit(1);
-}
 
 const md = new MarkdownIt({
   html: false,
@@ -33,7 +22,9 @@ const md = new MarkdownIt({
     }
     return '<pre class="hljs"><code>' + md.utils.escapeHtml(code) + '</code></pre>';
   }
-}).enable(['table', 'strikethrough']);
+})
+  .enable(['table', 'strikethrough'])
+  .use(taskLists, { enabled: true, label: true });
 
 const allowedTags = sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'span', 'input', 'del']);
 const allowedAttributes = {
@@ -44,14 +35,9 @@ const allowedAttributes = {
 };
 
 let markdownSource = '# GitHub Markdown Preview\n\nOpen a Markdown file and choose the preview command from the Extensions menu.\n';
-let previewServer = null;
-let previewUrl = null;
+let previewServer;
+let previewUrl;
 let browserOpened = false;
-const menuWindows = new Map();
-const pending = [];
-let buffer = '';
-let rootObjectId = null;
-let initialized = false;
 
 function renderMarkdown(source) {
   return sanitizeHtml(md.render(source || ''), {
@@ -88,8 +74,9 @@ main{max-width:1012px;margin:0 auto;padding:32px 40px 70px;overflow-wrap:anywher
 .markdown-body th,.markdown-body td{padding:6px 13px;border:1px solid var(--border)}.markdown-body th{font-weight:600;background:var(--subtle)}
 .markdown-body tr:nth-child(2n){background:var(--subtle)}.markdown-body img{max-width:100%;height:auto}
 .markdown-body hr{height:.25em;border:0;background:var(--border);margin:24px 0}
+.markdown-body .task-list-item{list-style:none}.markdown-body .task-list-item input{margin-right:.5em}
 @media(max-width:700px){main{padding:22px 18px 48px}}
-</style></head><body><div id="top">GitHub-style Markdown preview · refreshes automatically</div>
+</style></head><body><div id="top">GitHub-style Markdown preview · click the Notepadqq menu item to refresh</div>
 <main><article id="content" class="markdown-body">${initial}</article></main>
 <script>
 let last=document.getElementById('content').innerHTML;
@@ -115,88 +102,51 @@ function ensurePreviewServer() {
   });
 }
 
-function apiCall(stub, method, args = []) {
-  if (!stub || !Number.isFinite(Number(stub.id))) {
-    return Promise.reject(new Error('Invalid Notepadqq object for ' + method));
+function openBrowser(url) {
+  let command;
+  let args;
+  if (process.platform === 'darwin') {
+    command = 'open';
+    args = [url];
+  } else if (process.platform === 'win32') {
+    command = 'cmd';
+    args = ['/c', 'start', '', url];
+  } else {
+    command = 'xdg-open';
+    args = [url];
   }
-  return new Promise((resolve, reject) => {
-    pending.push({ resolve, reject });
-    socket.write(JSON.stringify({ objectId: Number(stub.id), method, args }) + '\n');
+  const child = spawn(command, args, { detached: true, stdio: 'ignore' });
+  child.unref();
+}
+
+function showPreview(window) {
+  try {
+    const editor = window.currentEditor();
+    if (!editor) {
+      console.error('GitHub Markdown Preview: no active editor.');
+      return;
+    }
+
+    // Notepadqq's API returns the current editor contents synchronously.
+    markdownSource = editor.value() || '';
+
+    ensurePreviewServer().then(() => {
+      if (!browserOpened) {
+        browserOpened = true;
+        openBrowser(previewUrl);
+      }
+    }).catch(error => {
+      console.error('GitHub Markdown Preview: unable to start preview server:', error);
+    });
+  } catch (error) {
+    console.error('GitHub Markdown Preview:', error && error.stack ? error.stack : error);
+  }
+}
+
+// Use Notepadqq's official extension API, not a hand-written socket protocol.
+NotepadqqApi.connect(api => {
+  api.onWindowInitialization(window => {
+    const menu = window.addExtensionMenuItem(api.extensionId, 'Preview current document');
+    menu.on('triggered', () => showPreview(window));
   });
-}
-
-async function attachWindow(windowStub) {
-  try {
-    const win = windowStub;
-    const menu = await apiCall(win, 'addExtensionMenuItem', [extensionId, 'Preview current document']);
-    if (menu && Number.isFinite(Number(menu.id))) menuWindows.set(Number(menu.id), win);
-  } catch (error) {
-    process.stderr.write('GitHub Markdown Preview: menu setup failed: ' + error.message + '\n');
-  }
-}
-
-async function initialize() {
-  if (initialized) return;
-  initialized = true;
-  try {
-    const windows = await apiCall({ id: rootObjectId }, 'windows');
-    if (Array.isArray(windows)) for (const win of windows) await attachWindow(win);
-  } catch (error) {
-    process.stderr.write('GitHub Markdown Preview: initialization failed: ' + error.message + '\n');
-  }
-}
-
-async function showPreview(win) {
-  try {
-    const editor = await apiCall(win, 'currentEditor');
-    const value = await apiCall(editor, 'value');
-    markdownSource = typeof value === 'string' ? value : '';
-    await ensurePreviewServer();
-    if (!browserOpened) {
-      browserOpened = true;
-      const child = spawn('xdg-open', [previewUrl], { detached: true, stdio: 'ignore' });
-      child.unref();
-    }
-  } catch (error) {
-    process.stderr.write('GitHub Markdown Preview: preview failed: ' + error.message + '\n');
-  }
-}
-
-async function handleMessage(message) {
-  if (Object.prototype.hasOwnProperty.call(message, 'result') &&
-      Object.prototype.hasOwnProperty.call(message, 'err')) {
-    const item = pending.shift();
-    if (item) {
-      if (message.err) item.reject(new Error(message.errStr || 'Notepadqq API error'));
-      else item.resolve(message.result);
-    }
-    return;
-  }
-  if (message.event === 'currentExtensionStarted') {
-    rootObjectId = Number(message.objectId);
-    await initialize();
-  } else if (message.event === 'newWindow' && message.args && message.args[0]) {
-    await attachWindow(message.args[0]);
-  } else if (message.event === 'triggered') {
-    const win = menuWindows.get(Number(message.objectId));
-    if (win) await showPreview(win);
-  }
-}
-
-const socket = net.createConnection(socketPath);
-socket.on('data', chunk => {
-  buffer += chunk.toString('utf8');
-  let newline;
-  while ((newline = buffer.indexOf('\n')) !== -1) {
-    const line = buffer.slice(0, newline);
-    buffer = buffer.slice(newline + 1);
-    if (!line.trim()) continue;
-    try { void handleMessage(JSON.parse(line)); }
-    catch (error) { process.stderr.write('GitHub Markdown Preview: protocol error: ' + error.message + '\n'); }
-  }
-});
-socket.on('error', error => process.stderr.write('GitHub Markdown Preview socket error: ' + error.message + '\n'));
-socket.on('close', () => {
-  if (previewServer) previewServer.close();
-  process.exit(0);
 });

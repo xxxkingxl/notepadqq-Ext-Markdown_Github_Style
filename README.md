@@ -1,40 +1,44 @@
 # GitHub Markdown Preview for Notepadqq
 
-A Notepadqq extension targeting **Notepadqq 2.1.1**. It adds an item under `Extensions → GitHub Markdown Preview → Preview current document`.
+A Node.js extension for **Notepadqq 2.1.1**. It adds a menu item to each Notepadqq window: **Extensions → GitHub Markdown Preview → Preview current document**.
 
 ## Features
 
 - GitHub-inspired light/dark styling (follows browser/system color preference)
-- GitHub-flavoured Markdown tables and strikethrough
+- Markdown tables, strikethrough and task lists
 - Fenced code blocks with Highlight.js syntax highlighting
-- Task-list checkbox rendering, links and images
+- Links and images
 - Raw HTML disabled and rendered output sanitized
+- Preview served locally on `127.0.0.1`
 
-## Install on Linux
+## Runtime compatibility
 
-1. Ensure Node.js and npm are installed and configured in Notepadqq's preferences.
-2. Copy this directory to `~/.config/Notepadqq/extensions/GitHubMarkdownPreview/`.
-3. Run `npm install --omit=dev` in that directory.
-4. Restart Notepadqq.
+Notepadqq 2.1.1's official `notepadqq-api` (0.9.5) uses the obsolete `Proxy.create()` API. This extension includes a compatibility shim for that API on modern Node.js versions, including Node.js 26.
+
+The official API also depends on `deasync` for synchronous calls. Its installation/build under Node.js 26 still needs verification on the target system. This repository is therefore a source checkout, not yet a tested release archive.
+
+## Development setup
+
+1. Configure the Node.js runtime and npm executable in Notepadqq's extension preferences.
+2. Clone this repository.
+3. Run `npm install` in the repository directory.
+4. Test with Notepadqq 2.1.1.
+
+The Notepadqq extension installer expects a package archive containing `nqq-manifest.json` and an npm package tarball. A release ZIP/package has not yet been generated or validated.
 
 ## Use
 
-Open a Markdown file, then choose `Extensions → GitHub Markdown Preview → Preview current document`. The first invocation opens a browser tab. Click the menu item again after editing to send the latest editor contents to the preview; the page polls the local server for updates.
+Open a Markdown file and choose **Extensions → GitHub Markdown Preview → Preview current document**. The first invocation opens the browser preview. The page polls the local server; click the menu item again after editing to refresh the source contents.
 
-## Notes / limitations
+## Current limitations
 
-- Uses Notepadqq's Node.js extension runtime and local-socket API.
-- Does not modify or save the source document.
-- Reads editor contents when the menu item is clicked; keystroke-level change events are not wired up yet.
-- Remote image URLs work best; relative image paths are not currently resolved against the Markdown file's directory.
-- Local preview server binds only to `127.0.0.1`.
-- Highlight.js stylesheet is loaded from cdnjs.
-
-## Compatibility
-
-Prepared for Notepadqq 2.1.1. The extension API is experimental/old and this initial build needs testing in the target installation.
+- Reads editor contents when the menu item is clicked; it does not yet subscribe to keystroke-level editor changes.
+- Relative image paths are not currently resolved against the Markdown file's directory.
+- Highlight.js stylesheet is loaded from cdnjs, so syntax highlighting styles require an internet connection.
+- Not yet integration-tested against a running Notepadqq 2.1.1 instance.
 
 ## References
 
-- https://github.com/notepadqq/notepadqq
-- https://github.com/notepadqq/example-extensions
+- [Notepadqq](https://github.com/notepadqq/notepadqq)
+- [Official Node.js extension API](https://github.com/notepadqq/NotepadqqApi_Nodejs)
+- [Official example extensions](https://github.com/notepadqq/example-extensions)

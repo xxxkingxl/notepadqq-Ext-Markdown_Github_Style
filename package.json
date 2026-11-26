@@ -10,5 +10,11 @@
     "markdown-it-task-lists": "^2.1.1",
     "notepadqq-api": "0.9.5",
     "sanitize-html": "^2.17.0"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

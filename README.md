@@ -31,19 +31,19 @@ The official API also depends on \`deasync\` for synchronous calls. Its installa
 1. Configure the Node.js runtime and npm executable in Notepadqq's extension preferences.
 2. Clone this repository.
 3. Run \`npm install\` in the repository directory.
-4. Test with Notepadqq 2.1.1.
+4. Run `npm test` to test Markdown rendering and sanitization.\n5. Test with Notepadqq 2.1.1.
 
 The Notepadqq extension installer expects a package archive containing \`nqq-manifest.json\` and an npm package tarball. A release ZIP/package has not yet been generated or validated.
 
 ## Use
 
-Open a Markdown file and choose **Extensions → GitHub Markdown Preview → Preview current document**. The first invocation opens the browser preview. The page polls the local server; click the menu item again after editing to refresh the source contents.
+Open a Markdown file and choose **Extensions → GitHub Markdown Preview → Preview current document**. The first invocation opens the browser preview. The page polls the local server; click the menu item again after editing to refresh the source contents. Syntax-highlighting themes are bundled locally.
 
 ## Current limitations
 
 - Reads editor contents when the menu item is clicked; it does not yet subscribe to keystroke-level editor changes.
 - Relative image paths are not currently resolved against the Markdown file's directory.
-- Highlight.js stylesheet is loaded from cdnjs, so syntax highlighting styles require an internet connection.
+- Highlight.js syntax themes are loaded from the local npm dependency; the preview itself does not need a CDN or internet access.
 - Not yet integration-tested against a running Notepadqq 2.1.1 instance.
 
 ## References

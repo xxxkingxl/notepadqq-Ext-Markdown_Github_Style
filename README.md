@@ -9,22 +9,31 @@ A Node.js extension for **Notepadqq 2.1.1**. It adds a menu item to each Notepad
 - Fenced code blocks with Highlight.js syntax highlighting
 - Links and images
 - Raw HTML disabled and rendered output sanitized
-- Preview served locally on `127.0.0.1`
+- Preview served locally on \`127.0.0.1\`
+
+## Project layout
+
+- \`main.js\` — Notepadqq entry point and menu integration
+- \`lib/markdown.js\` — Markdown parsing, syntax highlighting and HTML sanitization
+- \`lib/preview.js\` — local HTTP server and browser launch
+- \`styles/github.css\` — preview styling
+
+The modules are intentionally kept small and focused; there is no separate API-adapter module.
 
 ## Runtime compatibility
 
-Notepadqq 2.1.1's official `notepadqq-api` (0.9.5) uses the obsolete `Proxy.create()` API. This extension includes a compatibility shim for that API on modern Node.js versions, including Node.js 26.
+Notepadqq 2.1.1's official \`notepadqq-api\` (0.9.5) uses the obsolete \`Proxy.create()\` API. The small compatibility shim is kept in \`main.js\` and runs before the API is loaded.
 
-The official API also depends on `deasync` for synchronous calls. Its installation/build under Node.js 26 still needs verification on the target system. This repository is therefore a source checkout, not yet a tested release archive.
+The official API also depends on \`deasync\` for synchronous calls. Its installation/build under Node.js 26 still needs verification on the target system. This repository is therefore a source checkout, not yet a tested release archive.
 
 ## Development setup
 
 1. Configure the Node.js runtime and npm executable in Notepadqq's extension preferences.
 2. Clone this repository.
-3. Run `npm install` in the repository directory.
+3. Run \`npm install\` in the repository directory.
 4. Test with Notepadqq 2.1.1.
 
-The Notepadqq extension installer expects a package archive containing `nqq-manifest.json` and an npm package tarball. A release ZIP/package has not yet been generated or validated.
+The Notepadqq extension installer expects a package archive containing \`nqq-manifest.json\` and an npm package tarball. A release ZIP/package has not yet been generated or validated.
 
 ## Use
 

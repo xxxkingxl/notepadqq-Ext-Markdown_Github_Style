@@ -1,5 +1,9 @@
 {
+  "unique_name": "org.xxxkingxl.github-markdown-preview",
   "name": "GitHub Markdown Preview",
+  "version": "0.2.0",
+  "author": "xxxkingxl",
+  "description": "GitHub-style Markdown preview for Notepadqq, rendered in your browser.",
   "runtime": "nodejs",
   "main": "main.js"
 }
